@@ -31,6 +31,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(groupsProvider.notifier).fetch();
+    });
   }
 
   @override
@@ -45,7 +48,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _checkIdleNudges() {
-    final groups = ref.read(groupsProvider);
+    final groups = ref.read(groupsListProvider);
     final allExpenses = ref.read(expensesProvider);
     final allSettlements = ref.read(settlementsProvider);
     final now = DateTime.now();
@@ -71,7 +74,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _openAddExpense() {
-    final groups = ref.read(groupsProvider);
+    final groups = ref.read(groupsListProvider);
     if (groups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Create a group first to add an expense')),
@@ -87,6 +90,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       builder: (_) => AddExpenseSheet(
         groupId: group.id,
         members: group.members,
+        memberObjects: group.memberObjects,
         onAdded: (_) {},
       ),
     );
@@ -141,7 +145,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = ref.watch(groupsProvider);
+    final groups = ref.watch(groupsListProvider);
     final allExpenses = ref.watch(expensesProvider);
     final allSettlements = ref.watch(settlementsProvider);
 
@@ -594,7 +598,7 @@ class _ActivityTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(expensesProvider);
-    final groups = ref.watch(groupsProvider);
+    final groups = ref.watch(groupsListProvider);
     final recent = [...all.where((e) => !e.isDeleted)]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 

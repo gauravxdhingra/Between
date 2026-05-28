@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/supabase/supabase_client.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
@@ -36,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _phoneController.text.trim());
       setState(() => _otpSent = true);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyError(e));
     } finally {
       setState(() => _loading = false);
     }
@@ -49,8 +50,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             phone: _phoneController.text.trim(),
             token: _otpController.text.trim(),
           );
+      // Upsert profile on the backend so it exists before any API call
+      final phone = _phoneController.text.trim();
+      await ref.read(apiClientProvider).put('/profiles/me', data: {
+        'name': phone, // placeholder — user can update later
+        'phone': phone,
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyError(e));
     } finally {
       setState(() => _loading = false);
     }

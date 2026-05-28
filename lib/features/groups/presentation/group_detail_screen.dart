@@ -13,10 +13,30 @@ import '../../settlements/data/settlements_repository.dart';
 import '../../settlements/presentation/settle_up_sheet.dart';
 import '../domain/group_model.dart';
 
-class GroupDetailScreen extends ConsumerWidget {
+class GroupDetailScreen extends ConsumerStatefulWidget {
   const GroupDetailScreen({super.key, required this.group});
 
   final GroupModel group;
+
+  @override
+  ConsumerState<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
+  GroupModel get group => widget.group;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+  }
+
+  Future<void> _fetch() async {
+    await Future.wait([
+      ref.read(expensesProvider.notifier).fetchForGroup(group.id),
+      ref.read(settlementsProvider.notifier).fetchForGroup(group.id),
+    ]);
+  }
 
   String _ago(DateTime value) {
     final diff = DateTime.now().difference(value);
@@ -31,7 +51,7 @@ class GroupDetailScreen extends ConsumerWidget {
     List<ExpenseModel> expenses,
     List<SettlementRecord> settlements,
   ) {
-    double net = group.netBalance;
+    double net = 0;
     for (final e in expenses) {
       net += e.paidBy == 'You'
           ? e.amount - e.shareFor('You')
@@ -45,7 +65,7 @@ class GroupDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final allExpenses = ref.watch(expensesProvider);
     final allSettlements = ref.watch(settlementsProvider);
 
@@ -59,34 +79,20 @@ class GroupDetailScreen extends ConsumerWidget {
     final balanceColor =
         isOwed ? kPositive : isOwe ? kNegative : kNeutral;
 
-    // Combine seeded + live expenses
-    final allDisplay = [
-      ...expenses,
-      ...group.expenses.map((e) => ExpenseModel(
-            id: e.id,
-            groupId: group.id,
-            title: e.title,
-            amount: e.amount,
-            paidBy: e.paidBy,
-            splitType: 'equal',
-            splits: group.members
-                .map((m) => SplitEntry(
-                      member: m,
-                      amount: e.amount / group.members.length,
-                    ))
-                .toList(),
-            createdBy: e.paidBy,
-            createdAt: e.createdAt,
-          )),
-    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final allDisplay = [...expenses]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: kBgBase,
       extendBody: true,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: kMint,
+        backgroundColor: kBgSurface,
+        onRefresh: _fetch,
+        child: CustomScrollView(
+          slivers: [
           // ── App bar ─────────────────────────────────────────────
           SliverAppBar(
             pinned: true,
@@ -181,6 +187,7 @@ class GroupDetailScreen extends ConsumerWidget {
                                   groupId: group.id,
                                   groupName: group.name,
                                   members: group.members,
+                                  memberObjects: group.memberObjects,
                                 ),
                               );
                             },
@@ -278,6 +285,7 @@ class GroupDetailScreen extends ConsumerWidget {
                         builder: (_) => ExpenseDetailSheet(
                           expense: e,
                           currentUser: 'You',
+                          groupId: group.id,
                         ),
                       );
                     },
@@ -285,7 +293,8 @@ class GroupDetailScreen extends ConsumerWidget {
                 },
               ),
             ),
-        ],
+          ],
+        ),
       ),
 
       // ── Sticky add button ──────────────────────────────────────
@@ -302,6 +311,7 @@ class GroupDetailScreen extends ConsumerWidget {
                 builder: (_) => AddExpenseSheet(
                   groupId: group.id,
                   members: group.members,
+                  memberObjects: group.memberObjects,
                   onAdded: (expense) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

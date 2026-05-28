@@ -38,7 +38,7 @@ class ExpenseModel {
   final String title;
   final double amount;
   final String paidBy;
-  final String splitType; // 'equal' | 'custom'
+  final String splitType;
   final List<SplitEntry> splits;
   final String createdBy;
   final DateTime createdAt;
@@ -50,6 +50,42 @@ class ExpenseModel {
   double shareFor(String member) {
     final split = splits.where((s) => s.member == member).firstOrNull;
     return split?.amount ?? 0;
+  }
+
+  factory ExpenseModel.fromJson(
+      Map<String, dynamic> json, String currentUserId) {
+    final paidByUser = json['paidBy'] as Map<String, dynamic>?;
+    final paidByName = paidByUser != null
+        ? (paidByUser['id'] == currentUserId ? 'You' : paidByUser['name'] as String)
+        : 'Unknown';
+
+    final createdByRaw = json['createdById'] as String? ?? '';
+    final createdByName = createdByRaw == currentUserId ? 'You' : createdByRaw;
+
+    final splits = (json['splits'] as List<dynamic>? ?? []).map((s) {
+      final map = s as Map<String, dynamic>;
+      return SplitEntry(
+        member: map['userId'] == currentUserId ? 'You' : map['userId'] as String,
+        amount: (map['amount'] as num).toDouble(),
+        isSettled: map['settled'] as bool? ?? false,
+      );
+    }).toList();
+
+    return ExpenseModel(
+      id: json['id'] as String,
+      groupId: json['groupId'] as String,
+      title: json['title'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      paidBy: paidByName,
+      splitType: json['splitType'] as String? ?? 'equal',
+      splits: splits,
+      createdBy: createdByName,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      note: json['note'] as String?,
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.tryParse(json['deletedAt'] as String)
+          : null,
+    );
   }
 
   ExpenseModel copyWith({

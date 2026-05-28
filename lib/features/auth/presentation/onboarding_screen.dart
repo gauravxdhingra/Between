@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../shared/providers/auth_provider.dart';
+import '../../../core/api/api_client.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -29,23 +28,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       return;
     }
 
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      return;
-    }
-
     setState(() {
       _saving = true;
     });
 
     try {
-      await ref.read(authActionsProvider).completeOnboarding(
-            userId: user.id,
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim().isEmpty
-                ? null
-                : _phoneController.text.trim(),
-          );
+      final phone = _phoneController.text.trim();
+      await ref.read(apiClientProvider).put('/profiles/me', data: {
+        'name': _nameController.text.trim(),
+        if (phone.isNotEmpty) 'phone': phone,
+      });
     } finally {
       if (mounted) {
         setState(() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_client.dart';
 import '../data/groups_repository.dart';
 import '../domain/group_model.dart';
 
@@ -28,18 +29,24 @@ class _CreateGroupSheetState extends ConsumerState<CreateGroupSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      return;
-    }
+    if (name.isEmpty) return;
 
-    final group = ref.read(groupsProvider.notifier).createGroup(
-          name: name,
-          emoji: _selectedEmoji,
-        );
-    Navigator.of(context).pop();
-    widget.onCreated(group);
+    try {
+      final group = await ref.read(groupsProvider.notifier).createGroup(
+            name: name,
+            emoji: _selectedEmoji,
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onCreated(group);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyError(e))),
+      );
+    }
   }
 
   @override

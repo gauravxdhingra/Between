@@ -35,7 +35,7 @@ class GroupsListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final groups = ref.watch(groupsProvider);
+    final groups = ref.watch(groupsListProvider);
     final allExpenses = ref.watch(expensesProvider);
     final balances = {
       for (final g in groups) g.id: _liveBalance(g, allExpenses),
@@ -45,7 +45,11 @@ class GroupsListScreen extends ConsumerWidget {
 
     return SafeArea(
       bottom: false,
-      child: CustomScrollView(
+      child: RefreshIndicator(
+        color: kMint,
+        backgroundColor: kBgSurface,
+        onRefresh: () => ref.read(groupsProvider.notifier).fetch(),
+        child: CustomScrollView(
         slivers: [
           // ── Header ─────────────────────────────────────────────
           SliverToBoxAdapter(
@@ -190,6 +194,7 @@ class GroupsListScreen extends ConsumerWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }

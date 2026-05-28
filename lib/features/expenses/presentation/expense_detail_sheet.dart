@@ -13,10 +13,12 @@ class ExpenseDetailSheet extends ConsumerWidget {
     super.key,
     required this.expense,
     required this.currentUser,
+    required this.groupId,
   });
 
   final ExpenseModel expense;
   final String currentUser;
+  final String groupId;
 
   String _formatDate(DateTime dt) {
     const months = [
@@ -279,11 +281,22 @@ class ExpenseDetailSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             GestureDetector(
-              onTap: () {
-                ref.read(expensesProvider.notifier).softDelete(expense.id);
-                HapticFeedback.mediumImpact();
-                Navigator.of(ctx).pop();
-                Navigator.of(context).pop();
+              onTap: () async {
+                final nav = Navigator.of(ctx);
+                final rootNav = Navigator.of(context);
+                try {
+                  await ref.read(expensesProvider.notifier).softDelete(expense.id, groupId);
+                  HapticFeedback.mediumImpact();
+                  nav.pop();
+                  rootNav.pop();
+                } catch (e) {
+                  nav.pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
               },
               child: Container(
                 height: 50,

@@ -8,6 +8,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/settlement_calculator.dart';
 import '../../expenses/data/expenses_repository.dart';
 import '../../expenses/domain/expense_model.dart';
+import '../../groups/domain/group_model.dart';
 import '../data/settlements_repository.dart';
 
 class SettleUpSheet extends ConsumerStatefulWidget {
@@ -16,11 +17,13 @@ class SettleUpSheet extends ConsumerStatefulWidget {
     required this.groupId,
     required this.groupName,
     required this.members,
+    required this.memberObjects,
   });
 
   final String groupId;
   final String groupName;
   final List<String> members;
+  final List<GroupMember> memberObjects;
 
   @override
   ConsumerState<SettleUpSheet> createState() => _SettleUpSheetState();
@@ -177,19 +180,27 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () {
-                  ref.read(settlementsProvider.notifier).record(
+                onTap: () async {
+                  final nav = Navigator.of(ctx);
+                  final note = noteController.text.trim();
+                  String idFor(String displayName) {
+                    for (final m in widget.memberObjects) {
+                      if (m.name == displayName || displayName == 'You') {
+                        return m.id;
+                      }
+                    }
+                    return displayName;
+                  }
+                  await ref.read(settlementsProvider.notifier).record(
                     groupId: widget.groupId,
-                    from: transfer.from,
-                    to: transfer.to,
+                    fromId: idFor(transfer.from),
+                    toId: idFor(transfer.to),
                     amount: transfer.amount,
-                    note: noteController.text.trim().isEmpty
-                        ? null
-                        : noteController.text.trim(),
+                    note: note.isEmpty ? null : note,
                   );
                   setState(() => _recorded.add(_transferKey(transfer)));
                   HapticFeedback.mediumImpact();
-                  Navigator.of(ctx).pop();
+                  nav.pop();
                 },
                 child: Container(
                   height: 52,

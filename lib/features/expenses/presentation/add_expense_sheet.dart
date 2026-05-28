@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../groups/domain/group_model.dart';
 import '../data/expenses_repository.dart';
 import '../domain/expense_model.dart';
 
@@ -14,11 +16,13 @@ class AddExpenseSheet extends ConsumerStatefulWidget {
     super.key,
     required this.groupId,
     required this.members,
+    required this.memberObjects,
     required this.onAdded,
   });
 
   final String groupId;
-  final List<String> members;
+  final List<String> members;       // display names — used in UI
+  final List<GroupMember> memberObjects; // id + name — used for API
   final void Function(ExpenseModel expense) onAdded;
 
   @override
@@ -95,7 +99,16 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     });
   }
 
-  bool _submit() {
+  // Resolve display name → user ID using memberObjects (parallel lists)
+  String _idFor(String displayName) {
+    final idx = widget.members.indexOf(displayName);
+    if (idx != -1 && idx < widget.memberObjects.length) {
+      return widget.memberObjects[idx].id;
+    }
+    return displayName; // fallback: local mode
+  }
+
+  Future<bool> _submit() async {
     final amount = _parsedAmount;
     if (amount <= 0) { setState(() => _error = 'Enter an amount'); return false; }
     if (amount > 999999) { setState(() => _error = 'Max ₹9,99,999'); return false; }
@@ -106,7 +119,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     List<SplitEntry> splits;
     if (_splitType == 'equal') {
       splits = widget.members
-          .map((m) => SplitEntry(member: m, amount: _equalShare))
+          .map((m) => SplitEntry(member: _idFor(m), amount: _equalShare))
           .toList();
     } else {
       if (_customRemaining.abs() > 0.01) {
@@ -117,29 +130,34 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
       }
       splits = widget.members.map((m) {
         final v = double.tryParse(_customControllers[m]?.text ?? '') ?? 0;
-        return SplitEntry(member: m, amount: v);
+        return SplitEntry(member: _idFor(m), amount: v);
       }).toList();
     }
 
-    final expense = ref.read(expensesProvider.notifier).addExpense(
-      groupId: widget.groupId,
-      title: title,
-      amount: amount,
-      paidBy: _paidBy,
-      splitType: _splitType,
-      splits: splits,
-    );
+    try {
+      final expense = await ref.read(expensesProvider.notifier).addExpense(
+        groupId: widget.groupId,
+        title: title,
+        amount: amount,
+        paidById: _idFor(_paidBy),
+        splitType: _splitType,
+        splits: splits,
+      );
 
-    showExpenseAdded(
-      addedBy: _paidBy,
-      title: title,
-      yourShare: expense.shareFor('You'),
-      groupName: widget.groupId,
-    );
+      showExpenseAdded(
+        addedBy: _paidBy,
+        title: title,
+        yourShare: expense.shareFor('You'),
+        groupName: widget.groupId,
+      );
 
-    HapticFeedback.mediumImpact();
-    widget.onAdded(expense);
-    return true;
+      HapticFeedback.mediumImpact();
+      widget.onAdded(expense);
+      return true;
+    } catch (e) {
+      setState(() => _error = friendlyError(e));
+      return false;
+    }
   }
 
   @override
@@ -404,8 +422,10 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
                     // CTA
                     GestureDetector(
-                      onTap: () {
-                        if (_submit()) Navigator.of(context).pop();
+                      onTap: () async {
+                        final nav = Navigator.of(context);
+                        final ok = await _submit();
+                        if (ok) nav.pop();
                       },
                       child: Container(
                         height: 54,

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { supabase } from '../lib/supabase';
+import prisma from '../lib/prisma';
 
 export async function authenticate(
   request: FastifyRequest,
@@ -18,6 +19,15 @@ export async function authenticate(
   }
 
   request.userId = data.user.id;
+
+  // Ensure a Profile row exists so FK constraints never fail downstream
+  const phone = data.user.phone ?? undefined;
+  const name = phone ?? data.user.email ?? request.userId;
+  await prisma.profile.upsert({
+    where: { id: request.userId },
+    create: { id: request.userId, name, phone },
+    update: {},
+  });
 }
 
 // Extend FastifyRequest to carry userId
