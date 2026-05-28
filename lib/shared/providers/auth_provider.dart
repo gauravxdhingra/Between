@@ -64,6 +64,8 @@ final authActionsProvider = Provider<AuthActions>((ref) {
   return AuthActions();
 });
 
+final localTestModeProvider = StateProvider<bool>((ref) => false);
+
 class AuthActions {
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -92,6 +94,8 @@ class AuthActions {
   }
 
   Future<void> signOut() async {
-    await _client.auth.signOut();
+    if (SupabaseConfig.isConfigured) {
+      await _client.auth.signOut();
+    }
   }
 }
