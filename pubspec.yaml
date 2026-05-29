@@ -1,5 +1,5 @@
 name: between
-description: "Settle - shared money, zero awkwardness."
+description: "Settle — shared money, zero awkwardness."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -32,3 +32,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf

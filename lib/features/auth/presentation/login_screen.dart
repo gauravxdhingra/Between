@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/supabase/supabase_client.dart';
@@ -221,36 +220,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: const Text('Change number',
                         style: TextStyle(color: kTextSecondary)),
                   ),
-
-                const Divider(color: kDivider, height: 32),
-
-                // ── Skip (dev only) ──────────────────────────────
-                GestureDetector(
-                  onTap: _loading
-                      ? null
-                      : () {
-                          HapticFeedback.selectionClick();
-                          ref.read(localTestModeProvider.notifier).state =
-                              true;
-                          context.go('/app');
-                        },
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: kBgElevated,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kDivider),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Skip auth (dev mode)',
-                      style: TextStyle(
-                          color: kTextMuted,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
 
                 const Spacer(flex: 1),
               ],

@@ -13,6 +13,8 @@ import '../../../features/groups/domain/group_model.dart';
 import '../../../features/groups/presentation/group_detail_screen.dart';
 import '../../../features/groups/presentation/groups_list_screen.dart';
 import '../../../features/settlements/data/settlements_repository.dart';
+import '../../../core/api/api_client.dart';
+import '../../../features/auth/data/profile_provider.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/widgets/floating_nav.dart';
 
@@ -635,28 +637,250 @@ class _ActivityTab extends ConsumerWidget {
   }
 }
 
-class _ProfileTab extends ConsumerWidget {
+class _ProfileTab extends ConsumerStatefulWidget {
   const _ProfileTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends ConsumerState<_ProfileTab> {
+  late final TextEditingController _nameCtrl;
+  bool _editing = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(profileProvider.notifier).fetch();
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _startEdit(String current) {
+    _nameCtrl.text = current;
+    setState(() { _editing = true; _error = null; });
+  }
+
+  Future<void> _saveName() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await ref.read(profileProvider.notifier).updateName(name);
+      if (mounted) setState(() { _editing = false; _saving = false; });
+    } catch (e) {
+      if (mounted) setState(() { _saving = false; _error = friendlyError(e); });
+    }
+  }
+
+  Future<void> _signOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kBgSurface,
+        title: const Text('Sign out', style: TextStyle(color: kTextPrimary)),
+        content: const Text('Are you sure you want to sign out?',
+            style: TextStyle(color: kTextSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: kTextSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign out', style: TextStyle(color: kNegative)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(authActionsProvider).signOut();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profileAsync = ref.watch(profileProvider);
+    final authSnapshot = ref.watch(authStateProvider);
+    final phone = authSnapshot.valueOrNull?.session?.user.phone;
+
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Profile', style: Theme.of(context).textTheme.headlineLarge),
-            const Spacer(),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.logout_rounded, color: kNegative),
-              title: const Text('Sign out',
-                  style: TextStyle(color: kNegative, fontWeight: FontWeight.w500)),
-              onTap: () async {
-                ref.read(localTestModeProvider.notifier).state = false;
-                await ref.read(authActionsProvider).signOut();
-              },
+            const SizedBox(height: 28),
+
+            // Avatar + name card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kBgSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: kDivider),
+              ),
+              child: profileAsync.when(
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: kMint),
+                    ),
+                  ),
+                ),
+                error: (e, _) => Text(friendlyError(e),
+                    style: const TextStyle(color: kNegative, fontSize: 13)),
+                data: (profile) {
+                  final displayName = profile['name'] as String? ?? 'You';
+                  final initial = displayName.isNotEmpty
+                      ? displayName[0].toUpperCase()
+                      : '?';
+
+                  return Column(
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: kMint.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(initial,
+                            style: const TextStyle(
+                                color: kMint,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Inter')),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Name row
+                      if (_editing) ...[
+                        TextField(
+                          controller: _nameCtrl,
+                          autofocus: true,
+                          style: const TextStyle(color: kTextPrimary, fontSize: 18),
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            hintText: 'Your name',
+                            hintStyle: const TextStyle(color: kTextMuted),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: kDivider),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: kMint),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          onSubmitted: (_) => _saveName(),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_error != null)
+                          Text(_error!, style: const TextStyle(color: kNegative, fontSize: 12)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            TextButton(
+                              onPressed: _saving ? null : () => setState(() => _editing = false),
+                              child: const Text('Cancel', style: TextStyle(color: kTextSecondary)),
+                            ),
+                            const SizedBox(width: 8),
+                            FilledButton(
+                              onPressed: _saving ? null : _saveName,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: kMint,
+                                foregroundColor: kBgBase,
+                                minimumSize: const Size(80, 36),
+                              ),
+                              child: _saving
+                                  ? const SizedBox(width: 14, height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: kBgBase))
+                                  : const Text('Save'),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(displayName,
+                                style: amountStyle(size: 22, color: kTextPrimary)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => _startEdit(displayName),
+                              child: const Icon(Icons.edit_rounded,
+                                  size: 16, color: kTextMuted),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Phone row
+            if (phone != null && phone.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: kBgSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kDivider),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone_rounded, size: 18, color: kTextMuted),
+                    const SizedBox(width: 12),
+                    Text(phone, style: const TextStyle(color: kTextSecondary, fontSize: 15)),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 32),
+
+            // Sign out
+            GestureDetector(
+              onTap: _signOut,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: kNegative.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kNegative.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.logout_rounded, size: 18, color: kNegative),
+                    SizedBox(width: 12),
+                    Text('Sign out',
+                        style: TextStyle(
+                            color: kNegative,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

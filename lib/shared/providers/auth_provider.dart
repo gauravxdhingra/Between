@@ -31,31 +31,17 @@ final authStateProvider = StreamProvider<AuthStateSnapshot>((ref) async* {
 
   final client = Supabase.instance.client;
 
-  Future<AuthStateSnapshot> readSnapshot(Session? session) async {
-    if (session == null) {
-      return const AuthStateSnapshot(
-        session: null,
-        hasProfile: false,
-        isSupabaseConfigured: true,
-      );
-    }
-
-    final profile = await client
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
+  AuthStateSnapshot readSnapshot(Session? session) {
     return AuthStateSnapshot(
       session: session,
-      hasProfile: profile != null,
+      hasProfile: session != null, // backend auto-upserts on first request
       isSupabaseConfigured: true,
     );
   }
 
-  yield await readSnapshot(client.auth.currentSession);
+  yield readSnapshot(client.auth.currentSession);
 
-  yield* client.auth.onAuthStateChange.asyncMap((event) {
+  yield* client.auth.onAuthStateChange.map((event) {
     return readSnapshot(event.session);
   });
 });
@@ -64,10 +50,13 @@ final authActionsProvider = Provider<AuthActions>((ref) {
   return AuthActions();
 });
 
-final localTestModeProvider = StateProvider<bool>((ref) => false);
 
 class AuthActions {
   SupabaseClient get _client => Supabase.instance.client;
+
+  Future<void> signInAnonymously() async {
+    await _client.auth.signInAnonymously();
+  }
 
   Future<void> signInWithOtp(String phone) async {
     await _client.auth.signInWithOtp(phone: phone);

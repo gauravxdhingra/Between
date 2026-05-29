@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Settle (Production)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://olwvkdmdjandevhhzybj.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sd3ZrZG1kamFuZGV2aGh6eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODc3NjQsImV4cCI6MjA5NTU2Mzc2NH0.CpQUAjx5fTGWG3W3ok12Vf8GOICyWmE8knpRIvhD5B0"
+      ]
+    },
+    {
+      "name": "Settle (Local backend)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://olwvkdmdjandevhhzybj.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sd3ZrZG1kamFuZGV2aGh6eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODc3NjQsImV4cCI6MjA5NTU2Mzc2NH0.CpQUAjx5fTGWG3W3ok12Vf8GOICyWmE8knpRIvhD5B0",
+        "--dart-define=API_URL=http://10.0.2.2:3000"
+      ]
+    }
+  ]
+}

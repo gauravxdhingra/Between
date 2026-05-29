@@ -14,7 +14,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier<int>(0);
   ref.onDispose(refreshNotifier.dispose);
   ref.listen(authStateProvider, (_, _) => refreshNotifier.value++);
-  ref.listen(localTestModeProvider, (_, _) => refreshNotifier.value++);
   ref.listen(pendingJoinProvider, (_, _) => refreshNotifier.value++);
 
   return GoRouter(
@@ -35,21 +34,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       final authSnapshot = ref.read(authStateProvider);
-      final localTestMode = ref.read(localTestModeProvider);
       final pendingJoin = ref.read(pendingJoinProvider);
       final location = state.uri.path;
-
-      if (localTestMode) {
-        // Still honour pending join links in test mode
-        if (pendingJoin != null) {
-          final parsed = DeepLinkService.parseJoin(pendingJoin);
-          if (parsed != null) {
-            ref.read(pendingJoinProvider.notifier).state = null;
-            return '/join/${parsed.groupId}?token=${parsed.token}';
-          }
-        }
-        return location == '/app' ? null : '/app';
-      }
 
       return authSnapshot.when(
         loading: () => location == '/splash' ? null : '/splash',
