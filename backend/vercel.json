@@ -1,9 +1,17 @@
 {
   "version": 2,
+  "build": {
+    "env": {
+      "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+    }
+  },
   "builds": [
     {
       "src": "api/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["prisma/**"]
+      }
     }
   ],
   "routes": [
