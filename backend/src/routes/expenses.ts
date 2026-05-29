@@ -42,7 +42,11 @@ export default async function expenseRoutes(app: FastifyInstance) {
   app.post('/:groupId/expenses', { preHandler: authenticate }, async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = createSchema.safeParse(request.body);
-    if (!body.success) return reply.status(400).send({ error: body.error.flatten() });
+    if (!body.success) {
+      const flat = body.error.flatten();
+      console.error('Expense validation error', JSON.stringify(flat), 'body:', JSON.stringify(request.body));
+      return reply.status(400).send({ error: Object.values(flat.fieldErrors).flat().join(', ') || body.error.issues[0]?.message || 'Invalid request' });
+    }
 
     const member = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: request.userId } },
